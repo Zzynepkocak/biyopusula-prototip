@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BiyoPusula - CDR Prototip</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  :root{
+    --bg:#f7f8f6; --panel:#ffffff; --ink:#1f2a20; --muted:#5c6b5e;
+    --line:#dde3da; --accent:#2f6b3c; --accent-soft:#e8f1e6;
+    --warn-bg:#fff4e0; --warn-ink:#7a5b00;
+    --bad:#b3401f; --good:#2f6b3c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+  header{padding:20px 28px;border-bottom:1px solid var(--line);background:var(--panel);}
+  header h1{margin:0;font-size:20px;}
+  header p{margin:4px 0 0;color:var(--muted);font-size:13px;}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px 28px 60px;}
+  .banner{background:var(--warn-bg);color:var(--warn-ink);border:1px solid #eecf8a;border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:20px;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:24px;}
+  .kpi-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .kpi-card .label{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .kpi-card .values{display:flex;align-items:baseline;gap:8px;}
+  .kpi-card .opt{font-size:22px;font-weight:600;color:var(--accent);}
+  .kpi-card .base{font-size:13px;color:var(--muted);text-decoration:line-through;}
+  .kpi-card .delta{font-size:12px;margin-top:4px;font-weight:600;}
+  .delta.good{color:var(--good);} .delta.bad{color:var(--bad);}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;}
+  @media (max-width:860px){.cols{grid-template-columns:1fr;}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .panel h2{margin:0 0 10px;font-size:15px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);}
+  th{color:var(--muted);font-weight:600;font-size:12px;}
+  .route-block{margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--line);}
+  .route-block:last-child{border-bottom:none;}
+  .route-title{font-weight:600;font-size:13px;margin-bottom:4px;}
+  .tag{display:inline-block;font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:5px;padding:1px 6px;margin-left:6px;}
+  #map{height:420px;border-radius:10px;border:1px solid var(--line);}
+  button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;cursor:pointer;}
+  button:hover{opacity:.9;}
+  .footer-note{font-size:12px;color:var(--muted);margin-top:20px;}
+  .loading{color:var(--muted);font-size:13px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>BiyoPusula – CDR Prototip</h1>
+  <p>Manuel plan ile optimize edilmiş plan karşılaştırması (Konya pilot senaryosu)</p>
+</header>
+<div class="wrap">
+  <div class="banner" id="banner">Veri yükleniyor…</div>
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div class="cols">
+    <div class="panel">
+      <h2>Manuel Plan (mevcut durum benzetimi)</h2>
+      <div id="manualRoutes" class="loading">Yükleniyor…</div>
+    </div>
+    <div class="panel">
+      <h2>BiyoPusula Optimize Plan <span class="tag">OR-Tools / CVRP</span></h2>
+      <div id="optRoutes" class="loading">Yükleniyor…</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:24px;">
+    <h2>Harita – Üretici / Tesis Konumları ve Optimize Rotalar</h2>
+    <div id="map"></div>
+  </div>
+
+  <button onclick="loadAll()">Yeniden Hesapla</button>
+
+  <p class="footer-note">
+    Bu sayfadaki tüm sayısal değerler [TEMSİLİ SENARYO] bir veri seti üzerinde çalıştırılmıştır;
+    gerçek saha ölçümü değildir. Mesafe hesabı kuş uçuşu (haversine) mesafedir, gerçek yol mesafesi değildir.
+    Maliyet/yakıt/CO2e katsayıları [VARSAYIM] veya [LİTERATÜR VERİSİ] olarak işaretlenmiştir (bkz. app/models.py).
+  </p>
+</div>
+
+<script>
+let map, layerGroup;
+const colors = ["#2f6b3c", "#8a4b08", "#1f5c8a", "#7a1f5c", "#5c5c1f", "#1f5c5c"];
+
+function fmt(n){ return (n===null||n===undefined) ? "–" : n.toLocaleString("tr-TR"); }
+
+function kpiCard(label, baseVal, optVal, deltaVal, deltaPct, lowerIsBetter, unit){
+  const improved = lowerIsBetter ? (deltaVal <= 0) : (deltaVal >= 0);
+  const cls = improved ? "good" : "bad";
+  const sign = deltaVal > 0 ? "+" : "";
+  return `<div class="kpi-card">
+    <div class="label">${label}</div>
+    <div class="values">
+      <span class="opt">${fmt(optVal)}${unit}</span>
+      <span class="base">${fmt(baseVal)}${unit}</span>
+    </div>
+    <div class="delta ${cls}">${sign}${fmt(deltaVal)}${unit} (${sign}${fmt(deltaPct)}%)</div>
+  </div>`;
+}
+
+function renderRoutes(container, routes){
+  if(!routes.length){ container.innerHTML = "<p class='loading'>Rota üretilemedi.</p>"; return; }
+  container.innerHTML = routes.map(r => `
+    <div class="route-block">
+      <div class="route-title">${r.vehicle_id} <span class="tag">${r.doluluk_yuzde}% dolu</span></div>
+      <table>
+        <tr><th>Üretici</th><th>Miktar (ton)</th></tr>
+        ${r.stops.map(s => `<tr><td>${s.producer_name}</td><td>${s.quantity_tons}</td></tr>`).join("")}
+      </table>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+        Mesafe: ${r.distance_km} km · Toplam yük: ${r.load_tons} ton / ${r.vehicle_capacity_tons} ton kapasite
+      </div>
+    </div>
+  `).join("");
+}
+
+async function loadAll(){
+  document.getElementById("banner").textContent = "Hesaplanıyor…";
+  const res = await fetch("/api/compare");
+  const data = await res.json();
+
+  document.getElementById("banner").textContent = data.uyari;
+
+  const b = data.manuel_plan.kpi, o = data.optimize_plan.kpi, d = data.degisim;
+  document.getElementById("kpiGrid").innerHTML = [
+    kpiCard("Toplam mesafe", b.toplam_km, o.toplam_km, d.delta_km, d.delta_km_pct, true, " km"),
+    kpiCard("Sefer sayısı", b.sefer_sayisi, o.sefer_sayisi, d.delta_sefer, 0, true, ""),
+    kpiCard("Ort. araç doluluk", b.ortalama_doluluk_yuzde, o.ortalama_doluluk_yuzde, d.delta_doluluk_puan, 0, false, "%"),
+    kpiCard("Tahmini maliyet", b.tahmini_maliyet_try, o.tahmini_maliyet_try, d.delta_maliyet_try, d.delta_maliyet_pct, true, " TL"),
+    kpiCard("Tahmini CO2e", b.tahmini_co2e_kg, o.tahmini_co2e_kg, d.delta_co2e_kg, d.delta_co2e_pct, true, " kg"),
+  ].join("");
+
+  renderRoutes(document.getElementById("manualRoutes"), data.manuel_plan.rotalar);
+  renderRoutes(document.getElementById("optRoutes"), data.optimize_plan.rotalar);
+
+  drawMap(data.optimize_plan.rotalar);
+}
+
+async function drawMap(optRoutes){
+  const scenario = await (await fetch("/api/scenario")).json();
+  if(!map){
+    map = L.map("map");
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap katkıda bulunanlar"
+    }).addTo(map);
+    layerGroup = L.layerGroup().addTo(map);
+  }
+  layerGroup.clearLayers();
+
+  const f = scenario.tesis;
+  L.marker([f.lat, f.lon], {title: f.name}).addTo(layerGroup)
+    .bindPopup(`<b>${f.name}</b><br>Tesis`);
+
+  const byId = {};
+  scenario.uretici_listesi.forEach(p => byId[p.id] = p);
+
+  const bounds = [[f.lat, f.lon]];
+  optRoutes.forEach((r, idx) => {
+    const color = colors[idx % colors.length];
+    const points = [[f.lat, f.lon]];
+    r.stops.forEach(s => {
+      const p = byId[s.producer_id];
+      if(p){ points.push([p.lat, p.lon]); bounds.push([p.lat, p.lon]); }
+    });
+    points.push([f.lat, f.lon]);
+    L.polyline(points, {color, weight: 3}).addTo(layerGroup);
+    r.stops.forEach(s => {
+      const p = byId[s.producer_id];
+      if(p){
+        L.circleMarker([p.lat, p.lon], {radius: 6, color, fillColor: color, fillOpacity: 0.8})
+          .addTo(layerGroup)
+          .bindPopup(`<b>${p.name}</b><br>${s.quantity_tons} ton · ${r.vehicle_id}`);
+      }
+    });
+  });
+  map.fitBounds(bounds, {padding: [30,30]});
+}
+
+loadAll();
+</script>
+</body>
+</html>
