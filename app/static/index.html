@@ -97,7 +97,7 @@ function kpiCard(label, baseVal, optVal, deltaVal, deltaPct, lowerIsBetter, unit
       <span class="opt">${fmt(optVal)}${unit}</span>
       <span class="base">${fmt(baseVal)}${unit}</span>
     </div>
-    <div class="delta ${cls}">${sign}${fmt(deltaVal)}${unit} (${sign}${fmt(deltaPct)}%)</div>
+    <div class="delta ${cls}">${sign}${fmt(deltaVal)}${unit}${deltaPct ? ` (${sign}${fmt(deltaPct)}%)` : ""}</div>
   </div>`;
 }
 
@@ -128,7 +128,7 @@ async function loadAll(){
   document.getElementById("kpiGrid").innerHTML = [
     kpiCard("Toplam mesafe", b.toplam_km, o.toplam_km, d.delta_km, d.delta_km_pct, true, " km"),
     kpiCard("Sefer sayısı", b.sefer_sayisi, o.sefer_sayisi, d.delta_sefer, 0, true, ""),
-    kpiCard("Ort. araç doluluk", b.ortalama_doluluk_yuzde, o.ortalama_doluluk_yuzde, d.delta_doluluk_puan, 0, false, "%"),
+    kpiCard("Ort. araç doluluk", b.ortalama_doluluk_yuzde, o.ortalama_doluluk_yuzde, d.delta_doluluk_puan, 0, false, " puan"),
     kpiCard("Tahmini maliyet", b.tahmini_maliyet_try, o.tahmini_maliyet_try, d.delta_maliyet_try, d.delta_maliyet_pct, true, " TL"),
     kpiCard("Tahmini CO2e", b.tahmini_co2e_kg, o.tahmini_co2e_kg, d.delta_co2e_kg, d.delta_co2e_pct, true, " kg"),
   ].join("");
