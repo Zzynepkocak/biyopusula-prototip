@@ -26,7 +26,7 @@ from ortools.constraint_solver import routing_enums_pb2, pywrapcp
 from .distance import build_distance_matrix
 from .models import Route, RouteStop
 
-FIXED_COST_PER_VEHICLE_TRY = 300  # [VARSAYIM] bir sevkiyatın sabit (yakıt+zaman dışı) maliyeti - fazla sefer açmayı caydırır
+FIXED_COST_PER_VEHICLE_TRY = 300  # [VARSAYIM] optimizasyon ceza parametresi - fazla sefer açmayı caydırır. Maliyet modelinin parçası DEĞİLDİR; KPI hesabına (kpi.py) girmez, raporlanan maliyet yalnızca km x TL/km üzerinden hesaplanır.
 DISTANCE_SCALE = 1000  # km -> "metre benzeri" tam sayıya çevirmek için (OR-Tools tam sayı ister)
 TRIPS_PER_VEHICLE = 4  # bir aracın planlama döneminde yapabileceği varsayılan maksimum sefer sayısı [VARSAYIM]
 

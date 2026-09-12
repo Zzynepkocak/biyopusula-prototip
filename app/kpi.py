@@ -37,7 +37,7 @@ def compute_kpis(routes: list, vehicles: list, solve_seconds: float = None) -> d
     for r in routes:
         base_vehicle_id = r.vehicle_id.split(" (")[0]
         v = vehicle_by_id.get(base_vehicle_id)
-        cost_per_km = v.cost_per_km_try if v else 15.0
+        cost_per_km = v.cost_per_km_try if v else 25.53
         fuel_l_per_km = v.fuel_l_per_km if v else 0.28
         co2e_factor = v.co2e_kg_per_liter_diesel if v else 2.51072
         tahmini_maliyet += r.distance_km * cost_per_km

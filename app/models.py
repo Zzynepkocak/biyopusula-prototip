@@ -38,7 +38,9 @@ class Vehicle:
     capacity_tons: float
     # --- Varsayımlar (aşağıdaki üç alan [VARSAYIM] veya [LİTERATÜR VERİSİ] olarak etiketlidir,
     # gerçek teklif/fatura verisiyle güncellenmelidir) ---
-    cost_per_km_try: float = 15.0  # [VARSAYIM] TL/km - yakıt+bakım+sürücü dahil kaba tahmin
+    cost_per_km_try: float = 25.53  # yalnızca yakıt gideri, dayanak 0,28 L/km × 91,19 TL/L (Konya, 10 Eylül 2026).
+    # güncel motorin fiyatıyla (≈88,9 TL/L, Eylül 2026) yakıt bileşeni tek başına
+    # ~24,9 TL/km'dir - bu katsayı gerçekçi bir taban değil, göreli karşılaştırma içindir  
     fuel_l_per_km: float = 0.28  # [VARSAYIM] ~28 L/100km, orta ölçekli kamyon için tipik aralık
     co2e_kg_per_liter_diesel: float = 2.51072  # [LİTERATÜR VERİSİ] DEFRA 2020 dizel dönüşüm faktörü
 
