@@ -87,7 +87,8 @@ const colors = ["#2f6b3c", "#8a4b08", "#1f5c8a", "#7a1f5c", "#5c5c1f", "#1f5c5c"
 
 function fmt(n){ return (n===null||n===undefined) ? "–" : n.toLocaleString("tr-TR"); }
 
-function kpiCard(label, baseVal, optVal, deltaVal, deltaPct, lowerIsBetter, unit, deltaUnit){
+function kpiCard(label, baseVal, optVal, deltaVal, deltaPct, lowerIsBetter, unit, du = unit){
+  const du = deltaUnit || unit;
   const improved = lowerIsBetter ? (deltaVal <= 0) : (deltaVal >= 0);
   const cls = improved ? "good" : "bad";
   const sign = deltaVal > 0 ? "+" : "";
